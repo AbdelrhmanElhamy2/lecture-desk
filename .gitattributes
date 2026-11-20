@@ -4,6 +4,10 @@
 # Windows batch files must keep CRLF to run correctly
 *.bat text eol=crlf
 
+# macOS and Linux shell scripts must keep LF to run correctly
+*.sh text eol=lf
+*.command text eol=lf
+
 # Binary assets
 *.ico binary
 *.png binary

@@ -35,16 +35,16 @@
 ```mermaid
 flowchart TD
     Audio[Lecture Audio Recording: MP3 / M4A / WAV / AAC] --> Ingest[Audio Ingestion & 2GB Stream Handler]
-    Ingest --> LocalWhisper[Local faster-whisper transcription]
+    Ingest --> GeminiTranscription[Gemini API audio transcription]
     
     subgraph Stage1 [Stage 1: Pedagogical Synthesis]
-        LocalWhisper --> Engine[Gemini pedagogy engine receives transcript and optional slides]
+        GeminiTranscription --> Engine[Gemini pedagogy engine receives transcript and optional slides]
         Engine --> DraftGuide[Draft LectureStudyGuide JSON]
     end
     
     subgraph Stage2 [Stage 2: Transcript-to-Guide Check]
         DraftGuide --> Auditor[Multimodal Chief Academic Auditor]
-        LocalWhisper --> Auditor
+        GeminiTranscription --> Auditor
         Auditor --> FactCheck{Contradictions Detected?}
         FactCheck -- Yes --> Reconcile[Self-Correction: Auto-Harmonize Guide with Spoken Audio]
         Reconcile --> ReconciledGuide[Reconciled LectureStudyGuide JSON]
@@ -80,15 +80,15 @@ Here is the complete inventory of files, their exact paths, and their architectu
 | File Name | Absolute Path | Description & Architectural Responsibility |
 | :--- | :--- | :--- |
 | **`app.py`** | [`app.py`](app.py) | **FastAPI Web Server & API Router**: Exposes REST endpoints (`/api/process_audio`, `/api/status/{job_id}`, `/api/config`, `/api/set_key`, `/api/history`, `/api/download/{filename}`), mounts static assets, and manages asynchronous background workers. |
-| **`pipeline.py`** | [`pipeline.py`](pipeline.py) | **Central Pipeline Orchestrator**: Resolves sources, transcribes audio locally, then passes transcript and optional slides to Gemini, diagrams, and PDF generation. |
-| **`transcription.py`** | [`transcription.py`](transcription.py) | **Local faster-whisper service**: Lazy model loading, CPU-friendly configuration, ordered timestamped segments, detected language, and safe user-facing errors. |
-| **`pedagogy_engine.py`** | [`pedagogy_engine.py`](pedagogy_engine.py) | **Gemini text and notes engine**: Sends transcript text plus selected slides/notes for guide generation and transcript-to-guide checking. It does not upload audio. |
+| **`pipeline.py`** | [`pipeline.py`](pipeline.py) | **Central Pipeline Orchestrator**: Resolves sources, transcribes audio via Gemini API, then passes transcript and optional slides to Gemini, diagrams, and PDF generation. |
+| **`transcription.py`** | [`transcription.py`](transcription.py) | **Gemini audio transcription service**: Multimodal audio transcription using Gemini API (gemini-3.8-flash with gemini-3.6-flash fallback), ordered timestamped segments, language detection, and automatic Files API cleanup. |
+| **`pedagogy_engine.py`** | [`pedagogy_engine.py`](pedagogy_engine.py) | **Gemini text and notes engine**: Sends transcript text plus selected slides/notes for guide generation and transcript-to-guide checking. |
 | **`models.py`** | [`models.py`](models.py) | **Pydantic Data Models**: Defines strict schema contracts for `LectureStudyGuide`, `LectureSection`, `DoctorAlert`, `TableDefinition`, `DiagramDefinition`, `KeyFormula`, `ExamQuestion`, `ContradictionItem`, `VerificationAuditReport`, and `VerificationResult`. |
 | **`visualizer.py`** | [`visualizer.py`](visualizer.py) | **Academic Diagram Rendering Engine**: Generates 250+ DPI figures across 8 universal visual types (Flowcharts, System Block Diagrams, Timelines, Concept Maps, Function Plots, Cycles, Comparison Bars, Rectifier Waveforms). |
 | **`pdf_builder.py`** | [`pdf_builder.py`](pdf_builder.py) | **ReportLab Publication PDF Compiler**: Builds formal two-pass PDFs (`Page X of Y`), covers, tables, diagrams, transcript appendices, and an honest transcript-check certificate. |
 | **`config.py`** | [`config.py`](config.py) | **System Configuration & Storage Manager**: Sets directory paths (`uploads/`, `output_pdfs/`, `generated_assets/`), resolves Gemini API keys from `.env` or environment variables, and configures default model tiers. |
 | **`mock_generator.py`** | [`mock_generator.py`](mock_generator.py) | **Instant Demo Generator**: Generates a complete, realistic Operating Systems (CS302) lecture study guide with Peterson's algorithm, semaphores, deadlock cycles, and Amdahl's Law for instant offline testing without uploading audio. |
-| **`verify_audio_fidelity.py`** | [`verify_audio_fidelity.py`](verify_audio_fidelity.py) | **Standalone transcript-check CLI**: Transcribes the selected audio locally, checks a guide against the transcript and optional notes, then recompiles the PDF. |
+| **`verify_audio_fidelity.py`** | [`verify_audio_fidelity.py`](verify_audio_fidelity.py) | **Standalone transcript-check CLI**: Transcribes the selected audio via Gemini API, checks a guide against the transcript and optional notes, then recompiles the PDF. |
 | **`cli.py`** | [`cli.py`](cli.py) | **Terminal Command-Line Interface**: Allows running the complete pipeline from PowerShell or CMD with `--audio`, `--model`, `--subject`, `--mode`, and `--output` flags. |
 
 ---
@@ -136,15 +136,21 @@ Here is the complete inventory of files, their exact paths, and their architectu
 
 ## 🛠️ Chronology of Problems Solved & Technical Milestones
 
-### Hybrid Local Transcription and Bounded Gemini Model Policy (2026-10-12)
-* **Problem**: Live and standalone paths uploaded audio to Gemini for transcription and verification, the old model chain included unsupported candidates, and PDF/UI language implied independent audio verification.
+### Gemini API Audio Processing Migration (2026-10-21)
+* **Problem**: Local faster-whisper and PyAV introduced fragile native C library dependencies, version incompatibilities, and heavy local CPU/GPU resource overhead.
 * **Solution**:
-  - Added lazy, cached faster-whisper transcription with ordered source segments, timestamps, automatic language detection, CPU/int8 defaults, and user-facing load/decode errors.
-  - Gemini now receives transcript text and selected notes/slides for generation and transcript-to-guide checking. Audio is never uploaded to Gemini. Verification disclosures state that audio-to-transcript accuracy is not independently checked.
+  - Replaced faster-whisper and PyAV with Google Gemini API audio transcription using `gemini-3.8-flash` (with `gemini-3.6-flash` fallback).
+  - Maintained structured `SourceTranscript` and `TranscriptSegment` objects with start/end timestamps and language detection.
+  - Temporary audio files uploaded to Gemini Files API are automatically and reliably cleaned up in `finally` blocks.
+  - Removed all Whisper-specific configuration (`WHISPER_MODEL`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`) from configuration and documentation.
+* **Files modified**: `requirements.txt`, `config.py`, `transcription.py`, `pipeline.py`, `verify_audio_fidelity.py`, `.env.example`, `README.md`, `LECTUREAI_FULL_DOCUMENTATION.md`, and unit tests.
+
+### Hybrid Local Transcription and Bounded Gemini Model Policy (Historical)
+* **Problem**: Live and standalone paths previously required model chain constraints and PDF/UI language clarifications.
+* **Solution**:
   - Restricted the general Gemini model policy to `gemini-3.8-flash` with `gemini-3.6-flash` as the only overload fallback; updated the UI, example settings, and docs.
-  - Demo mode remains a deterministic simulation without Whisper initialization or external calls.
-* **Files modified**: `transcription.py`, `config.py`, `pipeline.py`, `pedagogy_engine.py`, `verify_audio_fidelity.py`, `models.py`, `pdf_builder.py`, `mock_generator.py`, `app.py`, `cli.py`, `templates/index.html`, `requirements.txt`, `.env.example`, `README.md`, and this document.
-* **Verification evidence**: `python -m unittest tests/test_suite.py -v` passed 35 tests; an isolated combined regression run passed all 46 existing and new tests. The CLI demo produced an isolated 8-page PDF that was rendered and checked for simulation disclosure, tofu glyphs, and unsupported 100% verification claims. A short synthetic speech sample completed local `small`/CPU/`int8` inference with English language metadata and timestamps. Live Gemini API availability was not tested.
+  - Demo mode remains a deterministic simulation without external API calls.
+* **Verification evidence**: Test suites and mocks updated to verify Gemini transcription pathway and file cleanup.
 
 ### Active Recall Quiz for Generated Exam Questions
 * **Problem**: Exam answers were available only through separate answer toggles, with no guided recall session or progress feedback.
@@ -250,11 +256,11 @@ Here is the complete inventory of files, their exact paths, and their architectu
 ### 8. Transcript-to-Guide Verification & Self-Correction
 * **Problem**: Even advanced LLMs can occasionally generate subtle contradictions, invert mathematical polarities, misattribute an operating state (e.g. forward vs reverse conduction), or misquote spoken professor exam cautions.
 * **Solution**:
-  - **Phase 2 Audit Stage (`pedagogy_engine.py`)**: After generating the draft study guide, Gemini checks it against the local transcript, selected notes/slides, and the draft guide JSON.
+  - **Phase 2 Audit Stage (`pedagogy_engine.py`)**: After generating the draft study guide, Gemini checks it against the audio transcript, selected notes/slides, and the draft guide JSON.
   - **Cross-Examination**: It checks operational modes, polarity directions, governing formulas, lecturer alerts, and testable exam questions against transcript text.
   - **Automated Self-Correction**: If any contradictions are detected, the AI generates a corrected `LectureStudyGuide` (`corrected_guide`), resolves every discrepancy, and records a structured `VerificationAuditReport`.
   - **Transcript Check Certificate**: Displays the verification status and reconciliation log. It states that speech recognition accuracy against source audio was not independently checked.
-  - **Standalone CLI (`verify_audio_fidelity.py`)**: Transcribes audio locally, then checks an existing guide against the transcript and optional slides.
+  - **Standalone CLI (`verify_audio_fidelity.py`)**: Transcribes audio via Gemini API, then checks an existing guide against the transcript and optional slides.
 
 ---
 

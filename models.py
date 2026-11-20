@@ -89,6 +89,18 @@ class LectureSection(BaseModel):
         default_factory=list,
         description="Diagrams, drawings or flowcharts illustrating this section"
     )
+    doctor_exact_wording: Optional[str] = Field(
+        None,
+        description="The exact spoken words and phrasing spoken by the doctor, translated 100% into English without summary or alteration"
+    )
+    simple_explanation: Optional[str] = Field(
+        None,
+        description="Clear, accessible plain-English explanation breaking down what the doctor meant in simple terms"
+    )
+    practical_example: Optional[str] = Field(
+        None,
+        description="Concrete real-world or applied example illustrating the concept"
+    )
 
 class ExamQuestion(BaseModel):
     """Simulated exam question modeling how the doctor will test this lecture."""
@@ -142,6 +154,8 @@ class LectureStudyGuide(BaseModel):
     lecturer_name: str = Field(default="Course Professor", description="Lecturer's name if identified")
     lecture_date: str = Field(default="", description="Date or academic term")
     notes_reference: Optional[str] = Field(default=None, description="Reference to lecture notes or slide range if provided (e.g. 'Slides 1–25')")
+    slides_covered_start: Optional[int] = Field(default=None, description="Starting slide number covered in the lecture recording")
+    slides_covered_end: Optional[int] = Field(default=None, description="Ending slide reached before the lecture concluded, as determined from the transcript or user specification")
     is_demo: bool = Field(default=False, description="True if guide was generated in simulation/demo mode")
     executive_summary: str = Field(
         ...,

@@ -33,7 +33,7 @@ def split_items(arg_list):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="LectureAI: Transform voice recordings into complete English study guides with diagrams & exam alerts."
+        description="Lecture Desk — Engineering Study Suite: Transform lecture recordings and slides into structured study guides, diagrams & exam practice."
     )
     parser.add_argument(
         "--audio", "-a",
@@ -57,7 +57,7 @@ def main():
     )
     parser.add_argument(
         "--mode",
-        choices=["detailed", "revision", "exam"],
+        choices=["detailed", "revision", "exam", "verbatim_explained"],
         default="detailed",
         help="Guide focus: detailed notes, compact revision, or exam-first prep"
     )
@@ -122,7 +122,7 @@ def main():
             pass
 
     print("\n" + "="*70)
-    print(" [*] LectureAI: Bilingual Lecture-to-Study-Guide & Exam Prep System")
+    print(" [*] Lecture Desk — Engineering Study Suite")
     print("="*70 + "\n")
 
     if args.list_courses:

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Callable, Dict, Any
 from config import UPLOAD_DIR, OUTPUT_DIR, get_gemini_api_key, resolve_gemini_model
 from models import LectureStudyGuide
-from pedagogy_engine import analyze_lecture_transcript
+from pedagogy_engine import analyze_lecture_transcript, _pdf_page_count
 from pdf_builder import PDFStudyGuideBuilder
 from mock_generator import get_sample_bilingual_lecture_guide
 from transcription import transcribe_audio_sources, format_transcript
@@ -60,18 +60,36 @@ def process_lecture(
         guide.is_demo = True
         notes_demo_label = None
         if notes_paths or start_slide or end_slide or slide_ranges:
+            deck_page_counts = [_pdf_page_count(np) for np in notes_paths if np.exists()]
+            total_deck_pages = deck_page_counts[0] if deck_page_counts else None
+
             if slide_ranges and any(sr[0] or sr[1] for sr in slide_ranges):
                 labels = []
-                for s_r in slide_ranges:
+                for r_idx, s_r in enumerate(slide_ranges):
+                    deck_total = deck_page_counts[r_idx] if r_idx < len(deck_page_counts) else None
                     s_n = s_r[0] or 1
-                    e_n = s_r[1] or 25
-                    labels.append(f"Slides {s_n}–{e_n} of 25")
+                    e_n = s_r[1] or deck_total
+                    total_deck_pages = deck_total
+                    if e_n:
+                        tot_str = f" of {total_deck_pages}" if total_deck_pages else ""
+                        labels.append(f"Slides {s_n}–{e_n}{tot_str}")
+                    else:
+                        labels.append(f"Slides starting from {s_n}")
                 notes_demo_label = f"{'; '.join(labels)} (Simulation Deck)"
             else:
                 s_num = start_slide or 1
-                e_num = end_slide or 25
-                notes_demo_label = f"Slides {s_num}–{e_num} of 25 (Simulation Deck)"
+                e_num = end_slide or total_deck_pages
+                if e_num:
+                    tot_str = f" of {total_deck_pages}" if total_deck_pages else ""
+                    notes_demo_label = f"Slides {s_num}–{e_num}{tot_str} (Simulation Deck)"
+                elif s_num > 1:
+                    notes_demo_label = f"Slides starting from {s_num} (Simulation Deck)"
+                else:
+                    notes_demo_label = "Complete Slide Deck (Simulation Deck)"
             guide.notes_reference = notes_demo_label
+            if not slide_ranges:
+                guide.slides_covered_start = start_slide or 1
+                guide.slides_covered_end = end_slide or total_deck_pages
 
         if not guide.verification_report:
             from models import VerificationAuditReport
@@ -105,15 +123,17 @@ def process_lecture(
             )
         selected_model = resolve_gemini_model(model)
             
-        callback("Loading the local Whisper model and transcribing lecture audio...", 12)
+        callback("Transcribing lecture audio with Gemini API...", 12)
         transcripts = transcribe_audio_sources(
             audio_paths,
+            api_key=key,
+            model=selected_model,
             progress_callback=callback,
             cancellation_check=cancellation_check,
         )
         transcript_text = format_transcript(transcripts)
         if not transcript_text.strip():
-            raise ValueError("Local transcription returned no usable text.")
+            raise ValueError("Audio transcription returned no usable text.")
         callback("Preparing transcript and lecture notes for Gemini...", 48)
         guide = analyze_lecture_transcript(
             transcript_text=transcript_text,
@@ -128,6 +148,13 @@ def process_lecture(
             study_mode=study_mode,
             progress_callback=callback
         )
+
+    if study_mode != "verbatim_explained":
+        # These blocks belong to the verbatim mode only; keep other modes' PDFs unchanged.
+        for section in guide.sections:
+            section.doctor_exact_wording = None
+            section.simple_explanation = None
+            section.practical_example = None
 
     callback("Generating visual diagrams, flowcharts, and comparison charts...", 85)
     

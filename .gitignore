@@ -1,5 +1,6 @@
 # ==========================================
-# LectureAI Study Suite - Git Ignore Rules
+# Lecture Desk — Engineering Study Suite
+# Git Ignore Rules
 # ==========================================
 
 # 1. Environment variables & Secrets (CRITICAL: NEVER COMMIT API KEYS)
@@ -67,3 +68,12 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 *.log
+
+# 8. Local Rollback Snapshots & Agent/Session Logs
+.undo_backups/
+.agents/
+CHANGES_AND_UNDO.md
+undo_changes.py
+lecture_ai_screen_recording_log.md
+LectureAI_Complete_Audit_and_Verification_Report.md
+launcher_error.log

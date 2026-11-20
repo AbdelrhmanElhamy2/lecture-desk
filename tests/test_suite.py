@@ -682,7 +682,7 @@ class TestLectureAISuite(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data.get("model"), config.DEFAULT_MODEL)
-        self.assertEqual(config.DEFAULT_MODEL, "gemini-3.8-flash")
+        self.assertEqual(config.DEFAULT_MODEL, "gemini-4-hydrogen")
 
         # 2. Response never contains 'masked_key'
         self.assertNotIn("masked_key", data)
@@ -945,7 +945,7 @@ class TestLectureAISuite(unittest.TestCase):
             pdf_path.unlink(missing_ok=True)
 
     def test_22_standalone_auditor_never_uploads_audio(self):
-        """Standalone audit transcribes locally and never uploads audio to Gemini."""
+        """Standalone audit checks guide against transcript without uploading audio in the auditor client."""
         from unittest.mock import patch, MagicMock
         import verify_audio_fidelity
         import tempfile
@@ -1137,7 +1137,7 @@ class TestLectureAISuite(unittest.TestCase):
                 headers={"host": "testserver", "origin": "http://testserver"}
             )
             self.assertEqual(resp_prod_testserver.status_code, 403)
-            self.assertIn("Requests must come from the local LectureAI dashboard", resp_prod_testserver.text)
+            self.assertIn("Requests must come from the local Lecture Desk dashboard", resp_prod_testserver.text)
 
             # External attacker origin must be REJECTED with 403
             resp_attacker = client.post(
@@ -1527,10 +1527,13 @@ class TestLectureAISuite(unittest.TestCase):
         client = TestClient(app)
         target_size = 60 * 1024 * 1024  # 60 MB
 
-        # 60 MB stream in 1 MB blocks
-        chunk = b"0" * (1024 * 1024)
-        large_stream = io.BytesIO(chunk * 60)
-        large_stream.name = "large_60mb_lecture.mp3"
+        # Stream 60 MB dummy file without single contiguous 60MB RAM allocation
+        import tempfile
+        tmp_f = tempfile.NamedTemporaryFile(delete=False)
+        for _ in range(60):
+            tmp_f.write(b"0" * (1024 * 1024))
+        tmp_f.close()
+        large_stream = open(tmp_f.name, "rb")
 
         sources_payload = json.dumps([
             {"id": "big_upload", "kind": "upload", "role": "audio", "order": 0, "display_name": "large_60mb_lecture.mp3"}
@@ -1563,6 +1566,12 @@ class TestLectureAISuite(unittest.TestCase):
 
             # Cleanup staged file
             passed_path.unlink(missing_ok=True)
+            large_stream.close()
+            import os
+            try:
+                os.unlink(tmp_f.name)
+            except Exception:
+                pass
 
     def test_36_universal_engineering_math_and_cue_cleaning(self):
         """Test universal engineering math entity conversions, cue prefix stripping, and PDF builder hardening."""
@@ -1627,7 +1636,7 @@ class TestLectureAISuite(unittest.TestCase):
             self.assertEqual(img.size, (512, 512))
             self.assertEqual(img.mode, "RGBA")
 
-        self.assertIn("/static/app_icon.png?v=4", index_html)
+        self.assertIn("/static/app_icon.png?v=5", index_html)
         self.assertIn("Engineering Study Suite", index_html)
         self.assertIn("Professor Exam Highlights", index_html)
         self.assertIn("Professor's Exam Alerts", index_html)

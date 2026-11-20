@@ -29,7 +29,7 @@ from link_downloader import (
     validate_course_folder_path,
 )
 
-app = FastAPI(title="LectureAI Study Suite", version="1.0.0")
+app = FastAPI(title="Lecture Desk — Engineering Study Suite", version="2.0.0")
 
 # The dashboard and API are served from the same local origin. Do not enable
 # cross-origin access; require browser mutations to come from that dashboard.
@@ -44,24 +44,35 @@ def is_test_environment() -> bool:
     return os.environ.get("LECTUREAI_TESTING", "").lower() in ("1", "true")
 
 
-@app.middleware("http")
-async def protect_local_mutations(request, call_next):
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        origin = request.headers.get("origin")
-        host = request.headers.get("host")
-        allow_testserver = is_test_environment()
-        is_allowed = (
-            origin in ALLOWED_BROWSER_ORIGINS
-            or (allow_testserver and (origin in {"http://testserver", "testserver"} or host == "testserver"))
-            or (origin is None and host in {"127.0.0.1:8000", "localhost:8000"})
-            or (allow_testserver and origin is None and host == "testserver")
-        )
-        if not is_allowed:
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Requests must come from the local LectureAI dashboard."},
+class LocalOriginGuardMiddleware:
+    """Pure ASGI origin check (avoids BaseHTTPMiddleware request body buffering on large uploads)."""
+
+    def __init__(self, asgi_app):
+        self.asgi_app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http" and scope.get("method") in {"POST", "PUT", "PATCH", "DELETE"}:
+            headers = {k.decode("latin1").lower(): v.decode("latin1") for k, v in scope.get("headers", [])}
+            origin = headers.get("origin")
+            host = headers.get("host")
+            allow_testserver = is_test_environment()
+            is_allowed = (
+                origin in ALLOWED_BROWSER_ORIGINS
+                or (allow_testserver and (origin in {"http://testserver", "testserver"} or host == "testserver"))
+                or (origin is None and host in {"127.0.0.1:8000", "localhost:8000"})
+                or (allow_testserver and origin is None and host == "testserver")
             )
-    return await call_next(request)
+            if not is_allowed:
+                response = JSONResponse(
+                    status_code=403,
+                    content={"detail": "Requests must come from the local Lecture Desk dashboard."},
+                )
+                await response(scope, receive, send)
+                return
+        await self.asgi_app(scope, receive, send)
+
+
+app.add_middleware(LocalOriginGuardMiddleware)
 
 # Mount generated assets for inline image viewing
 STATIC_DIR = Path(__file__).parent / "static"
@@ -701,10 +712,10 @@ async def search_course_folder_endpoint(
 
 @app.get("/api/config")
 async def get_config():
-    from config import DEFAULT_MODEL
+    from config import DEFAULT_MODEL, FREE_TIER_GEMINI_MODELS
     key = get_gemini_api_key()
     has_key = bool(key and len(key) > 5)
-    return {"has_key": has_key, "model": DEFAULT_MODEL}
+    return {"has_key": has_key, "model": DEFAULT_MODEL, "models": list(FREE_TIER_GEMINI_MODELS)}
 
 
 @app.post("/api/set_key")
@@ -735,7 +746,7 @@ async def process_audio(
     api_key: Optional[str] = Form(None),
     model: Optional[str] = Form(None),
     course_hint: Optional[str] = Form(None),
-    lecturer_hint: Optional[str] = None,
+    lecturer_hint: Optional[str] = Form(None),
     study_mode: str = Form("detailed"),
     include_diagrams: bool = Form(True),
     include_exam_questions: bool = Form(True),
@@ -743,8 +754,8 @@ async def process_audio(
     demo_mode: bool = Form(False),
     save_media_to_drive: bool = Form(False)
 ):
-    if study_mode not in {"detailed", "revision", "exam"}:
-        raise HTTPException(status_code=400, detail="Study mode must be detailed, revision, or exam.")
+    if study_mode not in {"detailed", "revision", "exam", "verbatim_explained"}:
+        raise HTTPException(status_code=400, detail="Study mode must be detailed, revision, exam, or verbatim_explained.")
 
     job_id = str(uuid.uuid4())
 
@@ -845,7 +856,7 @@ async def process_audio(
         if not resolved_key:
             raise HTTPException(
                 status_code=400,
-                detail="Gemini API Key is required to process real audio files. Please click 'Configure Key' at the top right to add your key, or click 'Instant Demo' to test without a key."
+                detail="Gemini API Key is required to process real audio files. Click 'Settings' at the top right to paste your free key, or click 'Try Sample Lecture' to preview without a key."
             )
 
         # Stage uploaded files with error rollback
@@ -943,7 +954,7 @@ async def process_audio(
             study_mode=study_mode,
             pdf_options=pdf_options,
             source_name="Instant Demo",
-            notes_source=f"Slides {start_slide or 1}–{end_slide or 25}" if (start_slide or end_slide) else None
+            notes_source=(f"Slides {start_slide or 1}–{end_slide}" if end_slide else f"Slides starting from {start_slide}" if start_slide else None)
         )
         return {"success": True, "job_id": job_id}
 
@@ -1063,7 +1074,7 @@ async def process_audio(
         discard_saved_uploads()
         raise HTTPException(
             status_code=400, 
-            detail="Gemini API Key is required to process real audio files. Please click 'Configure Key' at the top right to add your key, or click 'Instant Demo' to test without a key."
+            detail="Gemini API Key is required to process real audio files. Click 'Settings' at the top right to paste your free key, or click 'Try Sample Lecture' to preview without a key."
         )
 
     source_label = ", ".join(original_names) if original_names else "Lecture Recording"
@@ -1127,6 +1138,20 @@ async def download_pdf(filename: str):
         str(file_path),
         media_type="application/pdf",
         filename=filename
+    )
+
+
+@app.get("/api/view/{filename}")
+async def view_pdf_inline(filename: str):
+    """Serve a generated study guide PDF inline so it opens directly in a browser tab."""
+    safe_name = Path(filename).name
+    file_path = (OUTPUT_DIR / safe_name).resolve()
+    if OUTPUT_DIR.resolve() not in file_path.parents or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    return FileResponse(
+        str(file_path),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'}
     )
 
 
@@ -1194,5 +1219,5 @@ async def serve_dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    print("[*] Starting LectureAI Web Dashboard at http://127.0.0.1:8000 ...")
+    print("[*] Starting Lecture Desk Web Dashboard at http://127.0.0.1:8000 ...")
     uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=False)

@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 from google import genai
 
-from config import get_gemini_api_key, DEFAULT_MODEL, OUTPUT_DIR, UPLOAD_DIR, resolve_gemini_model
+from config import get_gemini_api_key, DEFAULT_MODEL, FREE_TIER_GEMINI_MODELS, OUTPUT_DIR, UPLOAD_DIR, resolve_gemini_model
 from models import LectureStudyGuide
 from pedagogy_engine import verify_and_reconcile_study_guide, slice_pdf_pages
 from pdf_builder import PDFStudyGuideBuilder
@@ -20,11 +20,11 @@ from transcription import transcribe_audio_sources, format_transcript
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Verify a study guide against a local transcript and optional lecture notes.")
+    parser = argparse.ArgumentParser(description="Verify a study guide against an audio transcript and optional lecture notes.")
     parser.add_argument(
         "--audio",
         required=True,
-        help="Path to lecture audio; it is transcribed locally and never uploaded to Gemini."
+        help="Path to lecture audio recording to transcribe and verify against the study guide."
     )
     parser.add_argument(
         "--notes",
@@ -56,8 +56,8 @@ def main():
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        choices=["gemini-3.8-flash", "gemini-3.6-flash"],
-        help="Gemini model to use for the transcript audit."
+        choices=list(FREE_TIER_GEMINI_MODELS),
+        help="Free-tier Gemini model to use for the transcript audit."
     )
     parser.add_argument(
         "--api-key",
@@ -93,7 +93,7 @@ def main():
         sys.exit(1)
 
     print("=" * 70)
-    print("🎓 LECTUREAI: LOCAL TRANSCRIPT & SLIDES AUDITOR")
+    print("LECTURE DESK: TRANSCRIPT & SLIDES AUDITOR")
     print("=" * 70)
     print(f"• Audio Recording: {audio_path.name}")
     if notes_path:
@@ -108,8 +108,8 @@ def main():
     draft_guide = LectureStudyGuide.model_validate(guide_data)
     print(f"Loaded: \"{draft_guide.lecture_title}\" ({len(draft_guide.sections)} sections)")
 
-    print("\n[2/4] Transcribing audio locally with faster-whisper...")
-    transcripts = transcribe_audio_sources([audio_path])
+    print("\n[2/4] Transcribing audio with Gemini API...")
+    transcripts = transcribe_audio_sources([audio_path], api_key=key, model=model)
     transcript_text = format_transcript(transcripts)
 
     client = genai.Client(api_key=key)

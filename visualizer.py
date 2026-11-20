@@ -15,17 +15,17 @@ from config import ASSETS_DIR
 
 logger = logging.getLogger(__name__)
 
-# Universal Academic Color Palette
-PRIMARY_COLOR = "#1E40AF"     # Royal Blue
-SECONDARY_COLOR = "#0D9488"   # Teal
-ACCENT_COLOR = "#D97706"      # Warm Amber
-PURPLE_COLOR = "#7C3AED"      # Deep Purple
-BG_CARD = "#F8FAFC"           # Soft Slate
-TEXT_DARK = "#0F172A"         # Slate 900
+# Universal Academic Color Palette (Print-Friendly Engineering Tones)
+PRIMARY_COLOR = "#1E3A8A"     # Prussian Blue
+SECONDARY_COLOR = "#0F766E"   # Deep Teal
+ACCENT_COLOR = "#B45309"      # Burnt Ochre
+PURPLE_COLOR = "#334155"      # Technical Slate (replaces neon purple)
+BG_CARD = "#F8FAFC"           # Soft Paper Slate
+TEXT_DARK = "#0F172A"         # Ink Slate 900
 TEXT_MUTED = "#475569"        # Slate 600
 BORDER_COLOR = "#CBD5E1"      # Slate 300
 
-BOX_PALETTE = ["#2563EB", "#0D9488", "#7C3AED", "#D97706", "#DB2777", "#059669", "#4F46E5"]
+BOX_PALETTE = ["#1E3A8A", "#0F766E", "#B45309", "#334155", "#15803D", "#9A3412", "#1D4ED8"]
 
 def wrap_text(text: str, width: int = 18) -> str:
     """Wrap text to keep diagram boxes compact and readable."""

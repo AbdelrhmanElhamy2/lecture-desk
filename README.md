@@ -1,105 +1,208 @@
-# 🎓 LectureAI — Academic Study Suite
-
 <div align="center">
 
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Google Gemini API](https://img.shields.io/badge/AI-Google%20Gemini%203.8%20Flash-orange.svg?logo=google&logoColor=white)](https://aistudio.google.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+<img src="static/app_icon.png" alt="Lecture Desk Icon" width="96" height="96">
 
-**Transform university lecture recordings and slide decks into publication-quality study guides, diagrams, and practice exam kits.**
+# Lecture Desk — Engineering Study Suite
 
-[Sample Output](samples/demo_guide.pdf) • [Key Capabilities](#-key-capabilities) • [System Architecture](#-system-architecture) • [Quick Start](#-quick-start) • [CLI Usage](#-cli-usage) • [Interactive Web UI](#-interactive-web-ui) • [License](#-license)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-1E3A8A.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-0F766E.svg)](https://fastapi.tiangolo.com)
+[![Gemini Free Tier](https://img.shields.io/badge/AI-Google%20Gemini%20Free%20Tier-C27803.svg)](https://aistudio.google.com/apikey)
+[![License: MIT](https://img.shields.io/badge/License-MIT-475569.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-64748B.svg)]()
+
+**Turn university lecture recordings and slide decks into textbook-grade PDF study guides, diagrams, and active-recall exam quizzes — right on your computer.**
+
+[Install in 3 Easy Steps](#-install--run-in-3-easy-steps-no-coding-required) • [Sample PDF](samples/demo_guide.pdf) • [What's Inside](#-what-lecture-desk-does) • [For Developers](#-for-developers-manual-setup--cli) • [Troubleshooting](#-troubleshooting)
 
 </div>
 
 ---
 
-## 💡 What is LectureAI?
+## Install & Run in 3 Easy Steps (No Coding Required)
 
-University lectures in Engineering, Medicine, Science, and STEM often move fast. Spoken explanations frequently deviate from slides, professors drop verbal hints about exams, and technical terminology is mixed across dialects (such as English and spoken Arabic code-switching).
+You do **not** need to know how to code or use a terminal to install **Lecture Desk**.
 
-**LectureAI** is an intelligent, multimodal academic companion. Feed it lecture audio and optional slide decks:
+### Step 1 — Download & Unzip
+1. **[Click here to download Lecture Desk (ZIP)](https://github.com/AbdelrhmanElhamy2/lecture-desk/archive/refs/heads/main.zip)**  
+   *(Or click the green **Code** button above, then **Download ZIP**.)*
+2. Find the downloaded `.zip` file in your **Downloads** folder.
+3. **Right-click** it and choose **Extract All...** (Windows) or **double-click** it (Mac).
+4. Open the extracted folder.
 
-1. **Transcribes Locally**: Uses faster-whisper with automatic language detection, including multilingual Arabic and English speech.
-2. **Grounds in Slides**: Matches spoken topics to slide decks, extracts precise formulas, and excludes unmentioned slide material.
-3. **Checks the Guide**: Gemini checks generated notes against the local transcript and selected slides. Speech recognition accuracy against the original audio is not independently verified.
-4. **Draws Visual Schematics**: Automatically generates publication-grade block diagrams, circuit waveforms, flowcharts, timelines, and concept maps.
-5. **Compiles Publication PDFs**: Builds print-ready PDFs with two-pass page numbering (`Page X of Y`), typographic math, and verbatim transcript appendices.
+### Step 2 — Double-Click to Install & Open
+- **On Windows:** Double-click **`Start_Lecture_Desk.bat`**
+  - If Python isn't installed yet, it offers to install Python for you automatically (just press **Enter**).
+  - On the first run (about 1–2 minutes), it sets up everything automatically and puts a **Lecture Desk** icon on your **Desktop**.
+  - Next time, just double-click **Lecture Desk** on your Desktop — it opens in a couple of seconds!
+- **On Mac:** Double-click **`Start_Lecture_Desk.command`**
+  - *(If macOS shows a security prompt the first time: right-click the file -> **Open** -> **Open**.)*
+- **On Linux:** Run `./start_lecture_desk.sh`
 
-> 📄 **Sample Output**: Inspect [samples/demo_guide.pdf](samples/demo_guide.pdf) to view a pre-compiled sample study guide produced in simulated demo mode (simulated demo with no real audio processed).
+> **Want to try it immediately without any API key?**  
+> As soon as Lecture Desk opens, click **Try Sample Lecture** to preview a full generated study guide, diagrams, PDF viewer, and active-recall quiz right away.
 
-> **Data flow:** Lecture audio is transcribed locally using faster-whisper. The transcript and relevant selected slide/note content are sent to Gemini to generate and check the study guide, so a Gemini API key is still required for live processing. Audio files are not sent to Gemini.
+### Step 3 — Add Your Free Google Gemini API Key (Takes 30 Seconds)
+To process your own lecture recordings, Lecture Desk uses Google's **free** Gemini API tier:
 
----
+1. Go to **[Google AI Studio](https://aistudio.google.com/apikey)** and sign in with your Google account.
+2. Click **Create API key** and copy the key.
+3. Inside **Lecture Desk**, click **Settings** (top-right corner), paste your key, and click **Save API Key**.
 
-## 🌟 Key Capabilities
-
-### 🎙️ 1. Unified Lecture Sources Intake
-- **Audio Formats**: `.m4a`, `.mp3`, `.wav`, `.aac`, `.ogg`, `.flac`, `.webm`, `.wma` (local uploads supported up to 2 GB per file via chunked streaming).
-- **Notes / Slides Formats**: `.pdf`, `.txt`, `.md`.
-- **Direct Cloud & Google Drive Streaming**: Paste public or shareable Google Drive links or direct URLs.
-- **Multi-Part Lectures**: Handles multiple consecutive recordings (Part 1, Part 2) and merges them chronologically into one unified narrative.
-- **Slide Range Bounds**: Target specific slides per deck (e.g. `Slides 5–28`). If left blank, LectureAI inspects the full deck and includes only concepts verbally taught.
-
-#### 🔀 Unified Mixed-Source Intake
-One lecture can seamlessly combine recordings and slide notes from different sources simultaneously in a single intake queue:
-1. **Computer Files**: Local file picker or drag-and-drop directly onto intake dropzones.
-2. **Drive / Direct Links**: Paste public Google Drive links or direct media URLs.
-3. **Course Folders**: Browse and select files from scanned local or Google Drive-synced course folders without locking manual uploads.
-
-**Example Scenario**:
-- **Recordings List**:
-  - `Part 1 (Computer)`: `Lecture_Part1.m4a` (uploaded from local computer)
-  - `Part 2 (Link)`: `https://drive.google.com/file/d/1.../view` (downloaded from Google Drive)
-- **Notes / Slides List**:
-  - `Deck 1 (Course Folder)`: `Bioinstrumentation_Ch1.pdf` (Slides 1–25)
-  - `Deck 2 (Computer)`: `Bioinstrumentation_Ch2_Supplements.pdf` (Slides 26–50)
-
-Items are ordered chronologically with up/down controls (`▲`/`▼`) and individual removal controls (`✕`). Multi-part audio is stitched in sequence, and slide decks are bounded by per-deck slide ranges.
-
-### 🌐 2. Bilingual Speech & Dialect Code-Switching
-- Supports multilingual transcription, including Arabic and English. Arabic-English code-switching and specialist terminology can still be recognized imperfectly and should be reviewed.
-- Synthesizes clean, formal academic English summaries and study guides with zero tofu boxes (`□`) or mixed-language clutter in the final document.
-
-### 📊 3. Zero-Collision Universal Diagram Generator
-Generates high-resolution vector diagrams via Matplotlib with collision-free layouts:
-- **Electronic Waveforms & Circuit Responses**: Half-wave/full-wave rectifiers, Zener clippers, Shockley oscillators, and harmonic plots.
-- **System Block Diagrams**: Subsystems, controller feedback loops, sensor chains, and interface buses.
-- **Process Cycles & State Machines**: Iterative loops, feedback cycles, and biological or algorithmic sequences.
-- **Scientific Flowcharts**: Decision trees, diagnostic algorithms, and procedural pipelines.
-- **Comparison Bar Charts**: Benchmark metrics, computational latencies, and material properties.
-- **Timelines & Historical Milestones**: Chronological developments and legal or scientific progressions.
-- **Hierarchical Concept Maps**: Taxonomy trees and structural categorizations.
-
-### 📐 4. Typographic Math & Auto-Healing Engine
-- Advanced regex healer repairs corrupted mathematical tokens (such as `\Delta rac` &rarr; `\frac`, missing square roots, unrendered subscripts).
-- Converts formulas into clear, beautifully formatted mathematical typography without missing-glyph defects.
-
-### 🛡️ 5. Transcript & Slides Check
-- Gemini checks the generated guide against the locally generated transcript and selected slides.
-- The PDF reports transcript-to-guide discrepancies and corrections. It clearly states that transcription accuracy against the original recording was not independently verified.
-
-### ⚠️ 6. "Doctor's Spoken Exam Traps" & Exam Kit
-- **Doctor Alerts**: Highlights verbal warnings, grading pitfalls, and "this will be on the final" hints in prominent amber callout boxes.
-- **Active Recall Exam Kit**: Generates clinical vignettes, engineering derivations, and conceptual questions modeled on university exams.
-- **Interactive Quiz Mode**: Practice one question at a time in the web dashboard, test your knowledge, reveal model answers, and track your recall score.
-
-### 📐 7. Universal Engineering Disciplines & Custom Course Presets
-- Interactive discipline filters and curated presets across:
-  - *Electrical & Electronic*: Circuit Analysis, Signals & Systems, Power Electronics, CMOS & Op-Amps
-  - *Mechanical & Aerospace*: Thermodynamics & Heat Transfer, Fluid Mechanics, Mechanics of Materials
-  - *Computer & Software*: Operating Systems & Concurrency, Algorithms, Computer Architecture
-  - *Civil & Structural*: Structural Analysis, Reinforced Concrete Design, Geotechnical Engineering
-  - *Chemical & Materials*: Reaction Kinetics, Mass Transfer & Distillation, Chemical Thermodynamics
-  - *Biomedical & Bio-Tech*: Bioinstrumentation, Signal Processing, Biomechanics, Medical Imaging
-  - *Robotics & Systems*: Control Systems Engineering, Kinematics, Operations Research
-- Add any custom college course with 1 click; saved permanently in your browser via `localStorage`.
+That's it — you're ready to drop your first lecture recording and slides!
 
 ---
 
-## 🏗️ System Architecture
+## How to Use Lecture Desk
+
+1. **Drop your files** into the upload box (mix and match audio recordings, PDF slides, Google Drive links, or local course folders).
+2. **Pick your Study Focus:**
+   - **Detailed notes** — Full chapter breakdown, formulas, derivations, and key takeaways.
+   - **Quick revision** — Compact, high-yield summary for rapid pre-exam review.
+   - **Exam focus** — Professor cues, common traps, and expanded practice questions.
+   - **Doctor's words & simple breakdown** — Exact translated wording paired with plain-English explanations and real-world examples.
+3. **Click Generate Study Guide** — read it inside the app, practice with the **Active Recall Quiz**, or click **View PDF** / **Download PDF** for a print-ready study guide.
+
+> **Sample Output:** Open [samples/demo_guide.pdf](samples/demo_guide.pdf) to see an example study guide compiled in demo mode (no live audio processed).
+
+---
+
+## What Lecture Desk Does
+
+### Clean Editorial Workspace
+- **Warm Paper Light** default theme and **Warm Charcoal Dark** toggle — designed for long study sessions without visual clutter.
+- Three focused views in the top bar: **Create**, **Library** (search and filter your last 50 saved guides), and **Study Guide** reader.
+- **One-Click Inline PDF Viewer** (`View PDF`) opens your finished study guide directly in a tab, alongside **Download PDF**.
+
+### Unified Mixed-Source Intake
+Combine materials from anywhere in a single lecture queue:
+- **Computer Files:** Drag-and-drop audio (`.mp3`, `.m4a`, `.wav`, `.aac`, `.ogg`, `.flac`, `.webm`, `.wma` up to 2 GB per file) and slides/notes (`.pdf`, `.txt`, `.md`) into one smart dropzone — files sort automatically.
+- **Google Drive & Direct Links:** Paste public Google Drive links or direct URLs.
+- **Course Folders:** Scan local or Google Drive-synced semester folders by session name (e.g. `Lecture 1`, `Section 2`).
+- **Multi-Part Lectures & Slide Ranges:** Reorder multi-part recordings chronologically and optionally limit each PDF deck to specific slide ranges (e.g. `Slides 5–28`).
+
+### Bilingual Classroom & Code-Switching Support
+- Transcribes multilingual lectures (including Arabic–English engineering/STEM code-switching) using Google Gemini's multimodal audio pipeline.
+- Produces clean, formal academic English study guides and PDFs with zero missing-glyph boxes (`□`).
+
+### Textbook-Grade PDFs, Math & Technical Diagrams
+- **Collision-Free Vector Diagrams:** Automatically renders waveforms, system block diagrams, process cycles, flowcharts, bar charts, timelines, and concept maps in a print-friendly engineering palette.
+- **Auto-Healing Math Typography:** Repairs broken equation tokens and renders clean, readable formulas in both the web reader and compiled PDF.
+- **Two-Pass PDF Builder:** Print-ready layout with `Page X of Y` numbering, clickable chapter jump navigation in the web reader, and click-to-zoom diagram lightbox.
+
+### Professor Exam Alerts & Active Recall Quiz
+- **Professor Exam Highlights:** Extracts verbal warnings, grading hints, and common exam traps into dedicated callout boxes.
+- **Interactive Active Recall Quiz:** Practice one question at a time inside the dashboard with keyboard shortcuts (`Space` to reveal answer, `1` for review, `2` for got it) and retry missed questions.
+- **Transcript & Slides Check:** Cross-checks the generated guide against the transcript and selected slides, transparently noting discrepancies (while clearly noting that audio-to-transcript accuracy itself is not independently verified).
+
+### Built for Engineering & STEM Disciplines
+Includes customizable course presets across **Electrical**, **Mechanical**, **Computer & Software**, **Civil**, **Chemical**, **Biomedical**, and **Robotics & Systems** — plus 1-click custom courses saved locally in your browser.
+
+---
+
+## Free-Tier Gemini Models & Automatic Fallback
+
+Lecture Desk is strictly configured to use **verified Free-Tier Google Gemini models only** (paid-only models are blocked so you never get surprise charges):
+
+1. `gemini-4-hydrogen` *(Primary default)*
+2. `gemini-3.8-flash` *(Flagship Flash)*
+3. `gemini-3.6-flash` *(Balanced Flash)*
+4. `gemini-3.5-flash-lite` *(Fast / High Quota)*
+5. `gemini-3-flash-preview` *(Flash Preview)*
+6. `gemini-3.1-flash-lite` *(Lightweight)*
+
+If a model is temporarily busy (rate-limited or overloaded), Lecture Desk automatically falls back down this Free-Tier chain. You can switch your preferred default anytime in **Settings**.
+
+---
+
+## Privacy & Security
+
+- **Your API key stays on your device:** Saved locally in `.env` (excluded from Git via `.gitignore`).
+- **What goes to Google Gemini:** Audio recordings, transcripts, and selected slides/notes are processed through the **Google Gemini API** (under [Google's Gemini API Terms](https://ai.google.dev/gemini-api/terms)). Temporary audio files uploaded to the Gemini Files API are automatically deleted right after transcription. Sample mode (`Try Sample Lecture` / `--demo`) sends nothing over the network.
+- **Everything else stays local:** Uploaded files (`uploads/`), generated PDFs (`output_pdfs/`), rendered diagrams (`generated_assets/`), and saved history (`lecture_history.json`) remain on your computer unless you opt into syncing with a local Google Drive folder.
+
+---
+
+## Troubleshooting
+
+- **"Windows protected your PC" (SmartScreen popup) when opening `Start_Lecture_Desk.bat`:**  
+  Click **More info** -> **Run anyway**. This appears on downloaded `.bat` files from GitHub because they aren't commercially code-signed.
+- **Error saying the folder is read-only or `.venv` couldn't be created:**  
+  Make sure you **extracted** the downloaded `.zip` file first (right-click the ZIP -> **Extract All...**). Don't double-click the launcher from inside the ZIP preview window.
+- **"Gemini API Key is required" message:**  
+  Click **Settings** at the top-right of Lecture Desk, paste your free key from [Google AI Studio](https://aistudio.google.com/apikey), and click **Save API Key** — or click **Try Sample Lecture** to test without a key.
+- **macOS says `Start_Lecture_Desk.command` cannot be opened:**  
+  Right-click (or Control-click) `Start_Lecture_Desk.command` in Finder -> click **Open** -> click **Open**.
+- **Slow file dialog or large recordings:**  
+  Drag-and-drop works directly onto the upload box. Lecture Desk streams local uploads up to 2 GB to disk in 1 MB chunks without buffering whole files into RAM.
+- **Need to re-create the Desktop shortcut on Windows:**  
+  Run `.venv\Scripts\python.exe create_desktop_shortcut.py` inside the app folder.
+
+---
+
+<details>
+<summary><h2>For Developers: Manual Setup, CLI & Tests</h2></summary>
+
+### Manual Setup (Windows, macOS, Linux)
+
+```bash
+git clone https://github.com/AbdelrhmanElhamy2/lecture-desk.git
+cd lecture-desk
+
+# Create and activate virtual environment
+python -m venv .venv
+# Windows:
+.\.venv\Scripts\activate
+# macOS / Linux:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Optional: configure .env (or enter key in the Settings modal)
+cp .env.example .env
+
+# Run desktop launcher (starts server + opens app window)
+python launcher.py
+# Or run FastAPI server directly at http://127.0.0.1:8000
+python app.py
+```
+
+### Command-Line Interface (CLI)
+
+```bash
+# 1. Zero-cost simulation demo (no API key required)
+python cli.py --demo
+
+# 2. Process a lecture recording (modes: detailed | revision | exam | verbatim_explained)
+python cli.py --audio "path/to/lecture.m4a" --mode exam
+
+# 3. Combine audio with specific slide range
+python cli.py --audio "lecture.m4a" --notes "slides.pdf" --start-slide 1 --end-slide 20
+
+# 4. Stitch multi-part recordings chronologically
+python cli.py --audio "part1.m4a" "part2.m4a" --notes "deck.pdf" --output "Lecture_01_Guide.pdf"
+
+# 5. Process directly from a Google Drive share link
+python cli.py --course "Power Electronics" --audio "https://drive.google.com/file/d/1.../view"
+
+# 6. Run standalone transcript & slides auditor
+python verify_audio_fidelity.py --audio "lecture.m4a" --notes "slides.pdf" --guide "cached_last_guide.json"
+```
+
+### Optional Course Folder / Google Drive Sync
+Set `LECTUREAI_COURSES_DIR` in `.env` (for example `LECTUREAI_COURSES_DIR=G:\My Drive\fall 2026`), then:
+```bash
+python cli.py --list-courses
+python cli.py --folder "Power Electronics" --session "Lecture 1"
+```
+
+### Automated Test Suite
+
+```bash
+python -m pytest -v
+```
+
+### System Architecture
 
 ```mermaid
 flowchart TD
@@ -110,235 +213,68 @@ flowchart TD
     end
 
     subgraph INGEST["2. Ingestion & Preprocessing"]
-        A & C --> D["Local faster-whisper<br/>Transcription"]
+        A & C --> D["Google Gemini API<br/>Audio Transcription"]
         B --> E["Slide Slicer & Page Extractor<br/>(PyPDF)"]
     end
 
     subgraph ENGINE["3. Pedagogical AI Engine"]
-        D & E --> F["Google Gemini 3.8 Flash<br/>Transcript & Slides Analysis"]
-        F --> G["Pedagogical Breakdown<br/>(Sections, Alerts, Formulas)"]
-        F --> H["Exam Readiness Kit<br/>(Vignettes, Derivations, MCQs)"]
+        D & E --> F["Google Gemini Free-Tier Chain<br/>Transcript & Slides Analysis"]
+        F --> G["Pedagogical Breakdown<br/>(Chapters, Alerts, Formulas)"]
+        F --> H["Exam Readiness Kit<br/>(MCQs, Problems, Vignettes)"]
         F --> I["Verbatim Spoken Transcript"]
     end
 
-    subgraph AUDIT["4. Fidelity & Verification"]
-        G & D --> J["Transcript-to-Guide Check<br/>Audio Accuracy Not Verified"]
-        J --> K["Reconciled Study Guide<br/>+ Fidelity Certificate"]
+    subgraph AUDIT["4. Transcript & Slides Check"]
+        G & D --> J["Transcript-to-Guide Check<br/>(Audio Accuracy Not Verified)"]
+        J --> K["Reconciled Study Guide"]
     end
 
-    subgraph VISUALS["5. Visual Schematics Generator"]
-        G --> L["Universal Visualizer Engine<br/>(Matplotlib)"]
+    subgraph VISUALS["5. Technical Visuals"]
+        G --> L["Universal Visualizer<br/>(Matplotlib)"]
         L --> M["Waveforms, Block Diagrams,<br/>Flowcharts, Timelines, Maps"]
     end
 
-    subgraph OUTPUT["6. Distribution & UI"]
-        K & M --> N["ReportLab PDF Builder<br/>(Two-Pass Dynamic Numbering)"]
-        N --> O["📄 Publication-Grade PDF Guide"]
-        K --> P["💻 Interactive Web Dashboard<br/>& Active Recall Quiz"]
+    subgraph OUTPUT["6. Output & Dashboard"]
+        K & M --> N["ReportLab PDF Builder<br/>(Two-Pass Page Numbering)"]
+        N --> O["Publication-Grade PDF Guide"]
+        K --> P["Lecture Desk Web UI<br/>& Active Recall Quiz"]
     end
 ```
 
----
+### Repository Structure
 
-## 🚀 Quick Start
-
-### Prerequisites
-- **Python 3.10+** ([Download from python.org](https://www.python.org/downloads/))
-- A free **Google Gemini API Key** ([Get your key at Google AI Studio](https://aistudio.google.com/apikey))
-
----
-
-### Method A: Standard Setup (Windows, macOS, Linux)
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/AbdelrhmanElhamy2/lecture-ai-study-suite.git
-   cd lecture-ai-study-suite
-   ```
-
-2. **Create and activate a virtual environment (recommended):**
-   ```bash
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-
-   # macOS / Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   This installs faster-whisper 1.2.1. On the first live transcription, faster-whisper may need an internet connection to download the selected model weights. The model cache is kept by the library outside the repository.
-
-4. **Set your Gemini API key:**
-   ```bash
-   # Copy the sample environment file
-   cp .env.example .env
-   ```
-   Open `.env` in any text editor and paste your key:
-   ```ini
-   GEMINI_API_KEY=your_gemini_api_key_here
-   GEMINI_MODEL=gemini-3.8-flash
-   LECTUREAI_WHISPER_MODEL=small
-   LECTUREAI_WHISPER_DEVICE=cpu
-   LECTUREAI_WHISPER_COMPUTE_TYPE=int8
-   ```
-   The Gemini primary is `gemini-3.8-flash`; temporary overloads can retry with `gemini-3.6-flash`. Set `LECTUREAI_WHISPER_MODEL=base` to reduce local resource use. `small` is the multilingual default; model size, device, and compute type can be configured with the three `LECTUREAI_WHISPER_*` settings.
-   *(Alternatively, you can leave it blank and paste it directly into the web interface when launching).*
-
-5. **Run the application:**
-   ```bash
-   # Option 1: Desktop launcher (starts the server in the background and opens the app window)
-   python launcher.py
-
-   # Option 2: Run the FastAPI web server directly
-   python app.py
-   ```
-   Open your browser at: 👉 **http://127.0.0.1:8000**
-
----
-
-### Method B: 1-Click Setup (Windows)
-
-1. Double-click **`Install_Dependencies.bat`** to automatically check Python and install all packages.
-2. Double-click **`Launch_LectureAI.bat`** to start the app.
-3. In the web dashboard that opens, click **"Configure Key"** at top right and paste your Gemini API key.
-
----
-
-## 💻 CLI Usage
-
-LectureAI includes a feature-rich terminal CLI for automated or headless environments:
-
-```bash
-# 1. Instant zero-cost simulation (tests models, diagrams, and PDF compilation without API key)
-python cli.py --demo
-
-# 2. Process a lecture audio file
-python cli.py --audio "path/to/lecture.m4a" --mode exam   # modes: detailed | revision | exam
-
-# 3. Process lecture audio with accompanying slides (slides 1 to 20)
-python cli.py --audio "lecture.m4a" --notes "slides.pdf" --start-slide 1 --end-slide 20
-
-# 4. Process multi-part audio recordings (e.g. split into two halves)
-python cli.py --audio "part1.m4a" "part2.m4a" --notes "deck.pdf" --output "Lecture_01_Guide.pdf"
-
-# 5. Process directly from Google Drive share links
-python cli.py --course "Power Electronics" --audio "https://drive.google.com/file/d/1.../view"
-
-# 6. Run standalone local transcript & slides checker
-python verify_audio_fidelity.py --audio "lecture.m4a" --notes "slides.pdf" --guide "cached_last_guide.json"
+```text
+lecture-desk/
+├── Start_Lecture_Desk.bat        # 1-click installer & launcher (Windows)
+├── Start_Lecture_Desk.command    # 1-click installer & launcher (macOS)
+├── start_lecture_desk.sh         # 1-click installer & launcher (Linux)
+├── launcher.py                   # Desktop app-window launcher (.venv-aware)
+├── create_desktop_shortcut.py    # Creates the Windows Desktop shortcut
+├── app.py                        # FastAPI backend & REST API
+├── cli.py                        # Command-line interface
+├── pipeline.py                   # End-to-end processing pipeline
+├── transcription.py              # Gemini multimodal audio transcription
+├── pedagogy_engine.py            # Transcript/slide synthesis & verification
+├── pdf_builder.py                # ReportLab PDF compiler & math healer
+├── visualizer.py                 # Matplotlib technical diagram engine
+├── models.py                     # Pydantic data schemas
+├── link_downloader.py            # Google Drive & course folder loader
+├── mock_generator.py             # Sample lecture demo generator
+├── config.py                     # Free-tier model chain & paths config
+├── verify_audio_fidelity.py      # Standalone transcript & slides checker
+├── create_icon.py                # Generates editorial Lecture Desk icons
+├── requirements.txt              # Python package dependencies
+├── .env.example                  # Sample environment file
+├── templates/index.html          # Lecture Desk web dashboard
+├── static/                       # Stylesheet, client JS, and app icon
+├── samples/demo_guide.pdf        # Pre-compiled sample study guide
+└── tests/                        # Automated pytest suite
 ```
 
-Live CLI and web jobs use the same local transcription stage. The Gemini API key is needed for guide generation and transcript-to-guide checking, but never for audio transcription itself. Demo mode uses simulated content and does not load Whisper or contact Gemini.
-
-### 📂 Optional: Course Folder & Google Drive Integration
-
-If you keep your semester materials in a folder (e.g. synced with Google Drive for Desktop), LectureAI can find lecture recordings/slides by session name and save finished PDFs back into each course's `lectures/summaries/` folder.
-
-Set the folder in `.env`:
-```ini
-LECTUREAI_COURSES_DIR=G:\My Drive\fall 2026
-```
-Then:
-```bash
-python cli.py --list-courses
-python cli.py --folder "Power Electronics" --session "Lecture 1"
-```
-Expected layout: `<courses dir>/<Course>/record (<Course>)/lectures/` for audio and `<courses dir>/<Course>/lectures/` for slides.
+</details>
 
 ---
 
-## 🧪 Running Automated Tests
+## License
 
-Run the full automated unit test suite to verify models, diagram rendering, slide slicing, math healing, and PDF generation:
-
-```bash
-python -m unittest tests/test_suite.py -v
-```
-
-The comprehensive automated test suite runs locally and verifies:
-- ✅ Pydantic schema validation & serialization
-- ✅ Visualizer diagram generation (Flowcharts, Cycles, Bar charts)
-- ✅ ReportLab PDF compilation and page numbering
-- ✅ End-to-end pipeline simulation
-- ✅ Transcript-to-guide discrepancy check with an explicit speech-recognition limitation
-- ✅ PDF slide deck slicing and range bounding
-- ✅ Math defect auto-healing & history deletion API
-- ✅ Selective course material discovery
-- ✅ Physics waveform plotting and collision-free layout
-- ✅ Tofu box glyph prevention & clean unicode rendering
-- ✅ System block diagram integrity & node label preservation
-- ✅ History deletion lifecycle & file unlinking
-- ✅ Demo endpoint lifecycle & simulated audit badging
-- ✅ Unified mixed-source intake & per-deck slide range bounding
-- ✅ Corrupt and encrypted PDF error handling
-- ✅ Single source of truth configuration & API key privacy
-
----
-
-## 🔒 Security & Privacy
-
-- **Your API key stays local**: It is read from `.env` (excluded via `.gitignore`) and is never committed.
-- **What leaves your machine**: The local transcript and selected slides/notes are sent to the **Google Gemini API** for guide generation and transcript-to-guide checking (subject to [Google's Gemini API terms](https://ai.google.dev/gemini-api/terms)). Audio itself is transcribed locally and is not sent to Gemini. Demo mode (`--demo`) sends nothing.
-- **What stays local**: Uploaded files (`uploads/`), generated PDFs (`output_pdfs/`), diagrams (`generated_assets/`), and history (`lecture_history.json`, `cached_last_guide.json`) are stored only on your device — unless you enable the optional Google Drive folder sync.
-- **Privacy in History**: Past lecture history records sanitized item counts and categories; raw download URLs, authentication tokens, and local file paths are not stored in history.
-
----
-
-## 🔧 Troubleshooting
-
-- **File Picker Behavior**: If your browser's native file picker dialog is slow or unresponsive, drag-and-drop works directly onto the "Recordings" and "Notes / Slides" dropzones.
-- **Recommended Browser**: For optimal UI responsiveness and local streaming, launch with `python app.py` and open **http://127.0.0.1:8000** in **Google Chrome** or **Microsoft Edge**.
-- **Upload Streaming & Size Limits**: Local uploads up to 2 GB are streamed to disk in 1 MB chunks without buffering entire multi-gigabyte recordings into system memory. If an upload fails, staged temporary files are automatically cleaned up.
-- **Whisper model download or slow transcription**: The first use may need an internet connection to fetch model weights. Confirm `LECTUREAI_WHISPER_MODEL`, `LECTUREAI_WHISPER_DEVICE`, and `LECTUREAI_WHISPER_COMPUTE_TYPE`; `base` uses fewer resources than `small`. Reinstall with `pip install -r requirements.txt` if the Python environment reports an incompatible PyAV version.
-
----
-
-## 📁 Repository Structure
-
-```
-lecture-ai-study-suite/
-├── app.py                     # FastAPI web application & REST API
-├── launcher.py                # Desktop application launcher
-├── cli.py                     # Command-line interface
-├── pipeline.py                # End-to-end processing pipeline
-├── pedagogy_engine.py         # Gemini transcript and notes analysis/checking
-├── pdf_builder.py             # ReportLab PDF compiler & math healer
-├── visualizer.py              # Matplotlib visual schematics generator
-├── models.py                  # Pydantic data schemas
-├── link_downloader.py         # Google Drive & cloud file downloader
-├── mock_generator.py          # Demo simulation guide generator
-├── config.py                  # Environment & directory configuration
-├── verify_audio_fidelity.py   # Standalone audio/slides contradiction auditor
-├── create_desktop_shortcut.py # Creates a Windows desktop shortcut
-├── create_icon.py             # Builds the multi-resolution app icon
-├── requirements.txt           # Python package dependencies
-├── .env.example               # Template environment configuration
-├── .gitignore                 # Excludes .env, recordings, and outputs
-├── pytest.ini                 # Limits pytest to the tests/ folder
-├── LICENSE                    # MIT Open Source License
-├── AUDIT_REPORT.md            # Security, privacy, and quality audit report
-├── LECTUREAI_FULL_DOCUMENTATION.md  # In-depth architecture & development log
-├── Install_Dependencies.bat   # 1-click installer for Windows
-├── Launch_LectureAI.bat       # 1-click launcher for Windows
-├── samples/
-│   └── demo_guide.pdf         # Sample pre-compiled study guide (demo mode)
-├── templates/
-│   └── index.html             # Interactive web UI dashboard
-├── static/                    # Icons and application branding
-├── tests/
-│   └── test_suite.py          # Automated unit test suite
-├── uploads/                   # Local staging directory (.gitkeep)
-├── output_pdfs/               # Generated study guides (.gitkeep)
-└── generated_assets/          # Rendered diagram images (.gitkeep)
-```
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE) — see the LICENSE file for details.
+Licensed under the [MIT License](LICENSE).

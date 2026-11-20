@@ -99,7 +99,7 @@ def slice_pdf_pages(
 
 SYSTEM_INSTRUCTION = r"""
 You are an elite university professor, bilingual academic translator, and exam strategist across all academic disciplines.
-Your task is to analyze the provided local transcript of a university/college lecture, with optional lecture notes, and transform it into a comprehensive, publication-quality academic study guide.
+Your task is to analyze the provided transcript of a university/college lecture, with optional lecture notes, and transform it into a comprehensive, publication-quality academic study guide.
 
 CRITICAL INSTRUCTIONS:
 1. UNIVERSAL & SPECIALIZED ENGINEERING EXPERTISE ACROSS ALL DISCIPLINES:
@@ -167,11 +167,19 @@ CRITICAL INSTRUCTIONS:
    - In `full_transcript_english`, provide the complete lecture translated into fluent, coherent, academic English paragraphs for cross-referencing.
 
 9. STRICT LECTURE NOTES & SLIDES INTEGRATION RULES (WHEN SLIDES/NOTES ARE ATTACHED):
-   - The local transcript is the record of spoken content available to this request; do not claim the source audio was independently checked.
+   - The transcript is the record of spoken content available to this request.
    - If lecture notes or slides are provided alongside the transcript:
      * Extract exact terminology, formal definitions, governing equations, diagrams, and tables from the slides only for topics supported by the transcript.
      * Do not include slide topics or examples that the transcript does not support.
      * SCOPE FIDELITY: The study guide must contain no more content than what the professor taught in the lecture, and no less (capturing all taught material, but strictly excluding unmentioned slide contents).
+     * DYNAMIC SLIDE RANGE DETECTION: When slides are attached and the user did not specify a fixed end slide, examine where the lecture actually stopped. Populate `slides_covered_start` and `slides_covered_end` with the starting and ending slide numbers explained in this recording, and ensure no material from subsequent slides is added.
+
+10. VERBATIM SPOKEN & SIMPLIFIED BREAKDOWN MODE (WHEN STUDY MODE IS 'verbatim_explained'):
+    - For each section in `sections`:
+      * `doctor_exact_wording`: Provide the doctor's exact spoken words and phrasing translated 100% into formal academic English. Do not summarize or dilute what was spoken; capture the exact sequence of explanations.
+      * `simple_explanation`: Explain what the doctor meant in simple, clear, intuitive terms with zero confusing jargon so that any beginner student can understand the concept effortlessly.
+      * `practical_example`: Provide a concrete, real-world, intuitive, or applied engineering example that directly demonstrates how this concept operates in practice.
+      * `exam_readiness_section`: Include high-probability exam questions directly derived from the doctor's emphasized cues and key points.
 """
 
 from typing import List, Union
@@ -206,8 +214,7 @@ def analyze_lecture_transcript(
     progress_callback: Optional[Callable[[str, int], None]] = None
 ) -> LectureStudyGuide:
     """
-    Sends a local transcript and optional lecture slides/notes to Gemini for guide generation.
-    Original audio is never passed to Gemini.
+    Sends an audio transcript and optional lecture slides/notes to Gemini for guide generation.
     Works universally across STEM, Medicine, Law, Business, and Humanities.
     """
     key = api_key or get_gemini_api_key()
@@ -217,7 +224,7 @@ def analyze_lecture_transcript(
             "provide it in the UI, or configure .env."
         )
     if not transcript_text or not transcript_text.strip():
-        raise ValueError("A non-empty local transcript is required for study-guide generation.")
+        raise ValueError("A non-empty audio transcript is required for study-guide generation.")
     client = genai.Client(api_key=key)
     uploaded_files: List[Any] = []
     try:
@@ -266,6 +273,7 @@ def _analyze_lecture_audio_impl(
     # Handle optional lecture notes / slides
     notes_files = []
     notes_ref_labels = []
+    deck_scopes: List[dict] = []
     for idx, np in enumerate(notes_paths):
         if not np.exists():
             continue
@@ -282,6 +290,19 @@ def _analyze_lecture_audio_impl(
             np, start_page=s_slide, end_page=e_slide, output_dir=UPLOAD_DIR
         )
         notes_ref_labels.append(f"{np.name} ({ref_label})")
+        total_pages = _pdf_page_count(np)
+        if total_pages:
+            scope_start = max(1, min(s_slide or 1, total_pages))
+            scope_end = max(scope_start, min(e_slide or total_pages, total_pages))
+        else:
+            scope_start = scope_end = None
+        deck_scopes.append({
+            "name": np.name,
+            "total": total_pages,
+            "start": scope_start,
+            "end": scope_end,
+            "user_fixed_end": e_slide is not None,
+        })
 
         if progress_callback:
             progress_callback(f"Sending selected lecture slides ({idx+1}/{len(notes_paths)}) to Gemini...", 56 + int(3 * (idx + 1) / max(1, len(notes_paths))))
@@ -298,7 +319,7 @@ def _analyze_lecture_audio_impl(
     notes_ref_label = "; ".join(notes_ref_labels) if notes_ref_labels else None
 
     if progress_callback:
-        progress_callback(f"Generating the study guide with {chosen_model} from the local transcript...", 62)
+        progress_callback(f"Generating the study guide with {chosen_model} from the transcript...", 62)
 
     hint_text = ""
     if course_hint or lecturer_hint:
@@ -313,6 +334,13 @@ def _analyze_lecture_audio_impl(
         "revision": "Create a compact revision guide: retain every taught idea, but prefer crisp explanations, 5–8 high-yield bullets per section, and only the most useful diagrams.",
         "exam": "Create an exam-first guide: prioritize professor cues, common pitfalls, calculation steps, and a substantial, varied practice-question bank. Keep explanations focused on what is testable.",
         "detailed": "Create thorough, structured notes suitable for learning the lecture from scratch.",
+        "verbatim_explained": (
+            "Create a Verbatim Spoken & Simplified Breakdown guide. For each section: "
+            "(1) In 'doctor_exact_wording', provide the exact words and statements the instructor said, translated 100% into clear academic English. "
+            "(2) In 'simple_explanation', explain the concept in simple, accessible terms with zero unnecessary jargon. "
+            "(3) In 'practical_example', give a vivid, concrete real-world example illustrating the concept. "
+            "(4) In 'exam_readiness_section', include high-probability exam questions directly derived from the doctor's emphasized points."
+        ),
     }
     selected_mode = study_mode if study_mode in mode_instructions else "detailed"
 
@@ -334,6 +362,18 @@ def _analyze_lecture_audio_impl(
             "or that the transcript does not support. "
         )
 
+    detect_scope = _single_detectable_deck(deck_scopes)
+    if detect_scope:
+        notes_instruction += (
+            f" SLIDE NUMBERING: page 1 of the attached slide file is original slide {detect_scope['start']}; "
+            f"the file covers original slides {detect_scope['start']}–{detect_scope['end']} of {detect_scope['total']}. "
+            "The user did NOT specify where the lecture stopped. Determine the first and last slides the lecturer actually "
+            "explained in this recording and set `slides_covered_start` and `slides_covered_end` using ORIGINAL slide numbers. "
+            "Exclude content from slides after the last explained slide. "
+        )
+    elif notes_files:
+        notes_instruction += " Leave `slides_covered_start` and `slides_covered_end` null; the slide range is fixed by the user. "
+
     prompt = (
         f"Analyze this university lecture transcript completely.{hint_text} "
         f"{notes_instruction}"
@@ -349,7 +389,7 @@ def _analyze_lecture_audio_impl(
         f"Study mode: {mode_instructions[selected_mode]} "
         "For every section, populate source_reference with the best approximate timestamp from the transcript segment markers. "
         "Do not fabricate timestamps; use an empty string when genuinely uncertain."
-        f"\n\nLOCAL TRANSCRIPT (ordered recordings, timestamps, detected language):\n{transcript_text}"
+        f"\n\nLECTURE TRANSCRIPT (ordered recordings, timestamps, detected language):\n{transcript_text}"
     )
 
     from config import gemini_model_candidates
@@ -420,10 +460,9 @@ def _analyze_lecture_audio_impl(
         else:
             raise ValueError(f"Failed to parse model response into LectureStudyGuide: {parse_exc}")
 
-    if notes_ref_label:
-        draft_guide.notes_reference = notes_ref_label
+    notes_ref_label = _resolve_slide_coverage(draft_guide, deck_scopes, detect_scope, notes_ref_label)
 
-    # Phase 2: Check draft guide against the local transcript and optional slides.
+    # Phase 2: Check draft guide against the transcript and optional slides.
     verified_guide, _ = verify_and_reconcile_study_guide(
         client=client,
         transcript_text=transcript_text,
@@ -433,22 +472,87 @@ def _analyze_lecture_audio_impl(
         model=successful_model,
         progress_callback=progress_callback
     )
-    if notes_ref_label and not verified_guide.notes_reference:
-        verified_guide.notes_reference = notes_ref_label
+    verified_guide.notes_reference = notes_ref_label or verified_guide.notes_reference
+    verified_guide.slides_covered_start = draft_guide.slides_covered_start
+    verified_guide.slides_covered_end = draft_guide.slides_covered_end
+    _restore_verbatim_fields(draft_guide, verified_guide)
     return verified_guide
+
+
+def _pdf_page_count(path: Path) -> Optional[int]:
+    """Page count of a PDF, or None for non-PDF / unreadable files."""
+    if path.suffix.lower() != ".pdf":
+        return None
+    try:
+        return len(pypdf.PdfReader(str(path)).pages) or None
+    except Exception:
+        return None
+
+
+def _single_detectable_deck(deck_scopes: List[dict]) -> Optional[dict]:
+    """Slide-end detection is only unambiguous for one PDF deck whose end the user left open."""
+    if len(deck_scopes) != 1:
+        return None
+    scope = deck_scopes[0]
+    if scope["total"] and not scope["user_fixed_end"]:
+        return scope
+    return None
+
+
+def _resolve_slide_coverage(
+    guide: LectureStudyGuide,
+    deck_scopes: List[dict],
+    detect_scope: Optional[dict],
+    notes_ref_label: Optional[str],
+) -> Optional[str]:
+    """Set validated slide coverage on the guide and return the final notes reference label."""
+    detected_start = guide.slides_covered_start
+    detected_end = guide.slides_covered_end
+    guide.slides_covered_start = None
+    guide.slides_covered_end = None
+
+    if detect_scope:
+        lo, hi = detect_scope["start"], detect_scope["end"]
+        if isinstance(detected_end, int) and lo <= detected_end <= hi:
+            start = detected_start if isinstance(detected_start, int) and lo <= detected_start <= detected_end else lo
+            guide.slides_covered_start = start
+            guide.slides_covered_end = detected_end
+            notes_ref_label = (
+                f"{detect_scope['name']} (Slides {start}–{detected_end} of {detect_scope['total']}, "
+                "detected from lecture recording)"
+            )
+    elif len(deck_scopes) == 1 and deck_scopes[0]["total"]:
+        guide.slides_covered_start = deck_scopes[0]["start"]
+        guide.slides_covered_end = deck_scopes[0]["end"]
+
+    if notes_ref_label:
+        guide.notes_reference = notes_ref_label
+    return notes_ref_label
+
+
+def _restore_verbatim_fields(draft: LectureStudyGuide, verified: LectureStudyGuide) -> None:
+    """Keep doctor-wording / simple-terms / example fields if the audit pass omitted them."""
+    drafts_by_title = {s.topic_title.strip().lower(): s for s in draft.sections}
+    for sec in verified.sections:
+        src = drafts_by_title.get(sec.topic_title.strip().lower())
+        if not src:
+            continue
+        for field in ("doctor_exact_wording", "simple_explanation", "practical_example"):
+            if not getattr(sec, field) and getattr(src, field):
+                setattr(sec, field, getattr(src, field))
 
 
 AUDIT_SYSTEM_INSTRUCTION = """
 You are the Chief Academic Auditor, Fact-Checker, and University Examination Inspector.
-Your sole duty is to protect students from errors, hallucinations, scope creep, and contradictions between the local transcript, official lecture notes/slides, and generated study materials.
+Your sole duty is to protect students from errors, hallucinations, scope creep, and contradictions between the transcript, official lecture notes/slides, and generated study materials.
 
 You will be provided with:
-1. The locally generated, timestamped transcript of the lecture. The original audio is not provided.
+1. The timestamped audio transcript of the lecture.
 2. (If provided) The official lecture notes or slides deck for this class.
 3. A draft Study Guide generated from this lecture.
 
 YOUR RIGOROUS AUDIT MANDATE:
-Cross-check the draft Study Guide against the locally generated transcript AND optional lecture notes/slides. Do not claim to verify the transcript against audio.
+Cross-check the draft Study Guide against the audio transcript AND optional lecture notes/slides.
 Detect ANY AND ALL contradictions, factual discrepancies, erroneous statements, or scope violations, including:
 1. Slide Scope Leakage & Unmentioned Content:
    - Check whether the guide added information, sections, formulas, or slides not supported by the transcript.
@@ -499,7 +603,7 @@ def verify_and_reconcile_study_guide(
 ) -> Tuple[LectureStudyGuide, VerificationAuditReport]:
     """
     Performs an automated audit comparing the generated study guide against
-    locally transcribed text and (optionally) lecture notes/slides.
+    the audio transcript and (optionally) lecture notes/slides.
     Detects contradictions, scope discrepancies, or formula errors,
     and returns a reconciled study guide and verification audit report.
     """
@@ -507,13 +611,13 @@ def verify_and_reconcile_study_guide(
 
     has_notes = len(notes_list) > 0
     if not transcript_text or not transcript_text.strip():
-        raise ValueError("A non-empty local transcript is required for verification.")
+        raise ValueError("A non-empty audio transcript is required for verification.")
     audit_notes_desc = f" and attached lecture slides ({notes_reference})" if has_notes else ""
     if progress_callback:
-        progress_callback(f"Checking study guide against local transcript{audit_notes_desc} for contradictions and scope...", 72)
+        progress_callback(f"Checking study guide against transcript{audit_notes_desc} for contradictions and scope...", 72)
 
     audit_prompt = (
-        f"Perform an exhaustive fact-check, contradiction audit, and scope verification of this Study Guide against the local transcript{audit_notes_desc}. The original audio was not provided and its transcription accuracy is not being assessed.\n\n"
+        f"Perform an exhaustive fact-check, contradiction audit, and scope verification of this Study Guide against the audio transcript{audit_notes_desc}.\n\n"
         "DRAFT STUDY GUIDE TO AUDIT:\n"
         f"{guide.model_dump_json(exclude={'full_transcript_english'})}\n\n"
         "Use the transcript text and its timestamps to check every operational claim, formula, lecturer alert, and exam question. "
@@ -525,10 +629,12 @@ def verify_and_reconcile_study_guide(
         )
         + "If there are any contradictions or discrepancies, document each in `contradictions` and return the complete "
         "reconciled study guide in `corrected_guide`. "
-        "If there are no contradictions, set `contradictions_detected` to 0 and return the guide unchanged."
+        "If there are no contradictions, set `contradictions_detected` to 0 and return the guide unchanged. "
+        "Always preserve `doctor_exact_wording`, `simple_explanation`, and `practical_example` for each section "
+        "(correct them only if they contradict the transcript)."
     )
 
-    contents_payload = [*notes_list, f"LOCAL TRANSCRIPT:\n{transcript_text}\n\n{audit_prompt}"]
+    contents_payload = [*notes_list, f"LECTURE TRANSCRIPT:\n{transcript_text}\n\n{audit_prompt}"]
 
     from config import gemini_model_candidates
     candidate_models = gemini_model_candidates(model)

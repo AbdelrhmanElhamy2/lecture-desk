@@ -51,6 +51,21 @@ def get_sample_bilingual_lecture_guide() -> LectureStudyGuide:
                     "Mutual exclusion alone is insufficient; progress and bounded waiting must also be guaranteed.",
                     "Disabling interrupts is only feasible in single-core kernel code and inappropriate for user-level multi-core applications."
                 ],
+                doctor_exact_wording=(
+                    "The doctor stated in English: 'When multiple threads read and write shared variables at the same time, "
+                    "you will get a race condition where the final calculation is wrong. To solve this, you cannot just say "
+                    "mutual exclusion; you must satisfy mutual exclusion, progress, and bounded waiting. For implementation, "
+                    "we use semaphores with atomic wait and signal operations.'"
+                ),
+                simple_explanation=(
+                    "Imagine a single bathroom in a shared house. If two people enter at the same time, chaos ensues (race condition). "
+                    "Mutual exclusion means only one person uses it at a time. Progress means if it's empty and someone wants to use it, "
+                    "they don't wait forever outside. Bounded waiting means no one is cut in line forever while waiting."
+                ),
+                practical_example=(
+                    "An ATM balance withdrawal: if an account has $100 and two cardholders attempt to withdraw $100 from two "
+                    "different ATMs at the exact same split-second, without a lock both ATMs might verify the balance is $100 and dispense $200."
+                ),
                 doctor_alerts=[
                     DoctorAlert(
                         alert_type="EXAM_PREDICTION",
@@ -123,6 +138,19 @@ def get_sample_bilingual_lecture_guide() -> LectureStudyGuide:
                     "Resource Allocation Graphs (RAG) with cycles indicate deadlock if and only if each resource has a single instance.",
                     "Banker's Algorithm by Dijkstra provides deadlock avoidance by testing safe states before resource allocation."
                 ],
+                doctor_exact_wording=(
+                    "The doctor stated in English: 'Deadlock happens if and only if four specific conditions happen simultaneously: "
+                    "mutual exclusion, hold and wait, no preemption, and circular wait. If you break just one of them, deadlock is "
+                    "impossible. Remember, a cycle in a resource graph guarantees deadlock ONLY if every resource has a single instance.'"
+                ),
+                simple_explanation=(
+                    "Deadlock is a complete traffic jam at a 4-way intersection where every car is blocking the car behind it and waiting "
+                    "for the car ahead to move. Since nobody can back up or move forward, everyone is stuck permanently unless someone yields."
+                ),
+                practical_example=(
+                    "Two children doing a craft: Child A has the scissors and needs glue. Child B has the glue and needs scissors. "
+                    "Neither is willing to let go of what they are holding until they finish. Both sit waiting forever."
+                ),
                 doctor_alerts=[
                     DoctorAlert(
                         alert_type="COMMON_PITFALL",
